@@ -2,14 +2,30 @@ const olTarefas = document.getElementById("olTarefas");
 const btCarregar = document.getElementById("btCarregar");
 const inputTarefa = document.getElementById("inputTarefa");
 const btAdicionar = document.getElementById("btAdicionar");
+const cbNaoConcluidas = document.getElementById("cbNaoConcluidas");
+
+const tarefaURL = "https://parseapi.back4app.com/classes/Tarefa";
+const headers = {
+  "X-Parse-Application-Id": "LXzh7fjlzQIIkqUCzg4zl7yfttXtgsOofUqeVpZR",
+  "X-Parse-REST-API-Key": "2P5KVRTih4tegOxlzCPXbxUk1TMCKi932c4b6F6k",
+};
+const headersJson = {
+  ...headers,
+  "Content-Type": "application/json",
+};
 
 const getTarefas = async () => {
-  const response = await fetch("https://parseapi.back4app.com/classes/Tarefa", {
+  let url = tarefaURL;
+  const naoConcluidas = cbNaoConcluidas.checked;
+  if (naoConcluidas) {
+    const whereClause = JSON.stringify({ concluida: false });
+    url = `${url}?where=${whereClause}`;
+    url = encodeURI(url);
+    console.log("url", url);
+  }
+  const response = await fetch(url, {
     method: "GET",
-    headers: {
-      "X-Parse-Application-Id": "LXzh7fjlzQIIkqUCzg4zl7yfttXtgsOofUqeVpZR",
-      "X-Parse-REST-API-Key": "2P5KVRTih4tegOxlzCPXbxUk1TMCKi932c4b6F6k",
-    },
+    headers: headers,
   });
   const data = await response.json();
   return data.results;
@@ -27,38 +43,38 @@ const listarTarefas = async () => {
     cb.name = tarefa.objectId;
     cb.type = "checkbox";
     cb.checked = tarefa.concluida;
-    cb.onchange = async () => {
-      cb.disabled = true;
-      await fetch(
-        `https://parseapi.back4app.com/classes/Tarefa/${tarefa.objectId}`,
-        {
-          method: "PUT",
-          headers: {
-            "X-Parse-Application-Id":
-              "LXzh7fjlzQIIkqUCzg4zl7yfttXtgsOofUqeVpZR",
-            "X-Parse-REST-API-Key": "2P5KVRTih4tegOxlzCPXbxUk1TMCKi932c4b6F6k",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ concluida: !tarefa.concluida }),
-        }
-      );
-      cb.disabled = false;
-      listarTarefas();
-    };
+    cb.onchange = () => handleChangeCBTarefa(cb, tarefa);
+    const button = document.createElement("button");
+    button.innerHTML = "X";
+    button.onclick = () => handleClickBtRemover(button, tarefa);
     li.appendChild(text);
     li.appendChild(cb);
+    li.appendChild(button);
     olTarefas.appendChild(li);
   }
 };
 
-/*
-curl -X POST \
--H "X-Parse-Application-Id: LXzh7fjlzQIIkqUCzg4zl7yfttXtgsOofUqeVpZR" \
--H "X-Parse-REST-API-Key: 2P5KVRTih4tegOxlzCPXbxUk1TMCKi932c4b6F6k" \
--H "Content-Type: application/json" \
--d "{ \"concluida\":true,\"descricao\":\"A string\" }" \
-https://parseapi.back4app.com/classes/Tarefa
-*/
+const handleChangeCBTarefa = async (cb, tarefa) => {
+  cb.disabled = true;
+  await fetch(`${tarefaURL}/${tarefa.objectId}`, {
+    method: "PUT",
+    headers: headersJson,
+    body: JSON.stringify({ concluida: !tarefa.concluida }),
+  });
+  cb.disabled = false;
+  listarTarefas();
+};
+
+const handleClickBtRemover = async (button, tarefa) => {
+  button.disabled = true;
+  await fetch(`${tarefaURL}/${tarefa.objectId}`, {
+    method: "DELETE",
+    headers: headers,
+  });
+  button.disabled = false;
+  listarTarefas();
+};
+
 const adicionarTarefa = async () => {
   const descricao = inputTarefa.value;
   if (!descricao) {
@@ -66,13 +82,9 @@ const adicionarTarefa = async () => {
     return;
   }
   btAdicionar.disabled = true;
-  const response = await fetch("https://parseapi.back4app.com/classes/Tarefa", {
+  const response = await fetch(tarefaURL, {
     method: "POST",
-    headers: {
-      "X-Parse-Application-Id": "LXzh7fjlzQIIkqUCzg4zl7yfttXtgsOofUqeVpZR",
-      "X-Parse-REST-API-Key": "2P5KVRTih4tegOxlzCPXbxUk1TMCKi932c4b6F6k",
-      "Content-Type": "application/json",
-    },
+    headers: headersJson,
     body: JSON.stringify({ descricao }),
   });
   btAdicionar.disabled = false;
@@ -82,3 +94,4 @@ const adicionarTarefa = async () => {
 
 btCarregar.onclick = listarTarefas;
 btAdicionar.onclick = adicionarTarefa;
+cbNaoConcluidas.onchange = listarTarefas;
