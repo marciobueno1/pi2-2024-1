@@ -3,6 +3,7 @@ const btCarregar = document.getElementById("btCarregar");
 const inputTarefa = document.getElementById("inputTarefa");
 const btAdicionar = document.getElementById("btAdicionar");
 const cbNaoConcluidas = document.getElementById("cbNaoConcluidas");
+let myChart = null;
 
 // canvas para o Chart.js
 const ctx = document.getElementById("myChart");
@@ -50,6 +51,7 @@ const listarTarefas = async () => {
     li.appendChild(button);
     olTarefas.appendChild(li);
   }
+  desenharGraficoPizza();
 };
 
 const configurarCB = (cb, tarefa) => {
@@ -98,9 +100,9 @@ const adicionarTarefa = async () => {
   inputTarefa.focus();
 };
 
-const getCountTarefas = async (concluida) => {
+const getCountTarefas = async (query) => {
   let url = tarefaURL;
-  const whereClause = JSON.stringify({ concluida: concluida });
+  const whereClause = JSON.stringify(query);
   url = `${url}?count=1&where=${whereClause}`;
   url = encodeURI(url);
   console.log("url", url);
@@ -114,17 +116,20 @@ const getCountTarefas = async (concluida) => {
 };
 
 const desenharGraficoPizza = async () => {
-  const countTarefasConcluidas = await getCountTarefas(true);
-  const countTarefasAFazer = await getCountTarefas(false);
-  const tarefasData = [countTarefasConcluidas, countTarefasAFazer];
+  if (myChart) {
+    myChart.destroy();
+  }
+  const countTarefasConcluidas = await getCountTarefas({ concluida: true });
+  const countTarefasAFazer = await getCountTarefas({ concluida: false });
+  const tarefasData = [countTarefasAFazer, countTarefasConcluidas];
   console.log("tarefasData", tarefasData);
   const data = {
-    labels: ["concluída", "a fazer"],
+    labels: ["a fazer", "concluída"],
     datasets: [
       {
-        label: "Acompanhamento Tarefas",
+        label: "Tarefas",
         data: tarefasData,
-        backgroundColor: ["rgb(0, 128, 0)", "rgb(255, 87, 51)"],
+        backgroundColor: ["rgb(255, 87, 51)", "rgb(0, 128, 0)"],
       },
     ],
     hoverOffset: 4,
@@ -134,13 +139,10 @@ const desenharGraficoPizza = async () => {
     type: "pie",
     data: data,
   };
-  new Chart(ctx, config);
+  myChart = new Chart(ctx, config);
 };
 
 btCarregar.onclick = listarTarefas;
 btAdicionar.onclick = adicionarTarefa;
 cbNaoConcluidas.onchange = listarTarefas;
-window.onload = () => {
-  listarTarefas();
-  desenharGraficoPizza();
-};
+window.onload = listarTarefas;
