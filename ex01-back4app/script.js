@@ -98,20 +98,25 @@ const adicionarTarefa = async () => {
   inputTarefa.focus();
 };
 
+const getCountTarefas = async (concluida) => {
+  let url = tarefaURL;
+  const whereClause = JSON.stringify({ concluida: concluida });
+  url = `${url}?count=1&where=${whereClause}`;
+  url = encodeURI(url);
+  console.log("url", url);
+  const response = await fetch(url, {
+    method: "GET",
+    headers: headers,
+  });
+  const data = await response.json();
+  console.log("data count", data);
+  return data.count;
+};
+
 const desenharGraficoPizza = async () => {
-  const tarefas = await getTarefas(false);
-  console.log("tarefas", tarefas);
-  const tarefasData = tarefas.reduce(
-    (acc, tarefa) => {
-      if (tarefa.concluida) {
-        acc[0] += 1;
-      } else {
-        acc[1] += 1;
-      }
-      return acc;
-    },
-    [0, 0]
-  );
+  const countTarefasConcluidas = await getCountTarefas(true);
+  const countTarefasAFazer = await getCountTarefas(false);
+  const tarefasData = [countTarefasConcluidas, countTarefasAFazer];
   console.log("tarefasData", tarefasData);
   const data = {
     labels: ["concluída", "a fazer"],
