@@ -4,6 +4,9 @@ const inputTarefa = document.getElementById("inputTarefa");
 const btAdicionar = document.getElementById("btAdicionar");
 const cbNaoConcluidas = document.getElementById("cbNaoConcluidas");
 
+// canvas para o Chart.js
+const ctx = document.getElementById("myChart");
+
 const tarefaURL = "https://parseapi.back4app.com/classes/Tarefa";
 const headers = {
   "X-Parse-Application-Id": "LXzh7fjlzQIIkqUCzg4zl7yfttXtgsOofUqeVpZR",
@@ -14,9 +17,8 @@ const headersJson = {
   "Content-Type": "application/json",
 };
 
-const getTarefas = async () => {
+const getTarefas = async (naoConcluidas) => {
   let url = tarefaURL;
-  const naoConcluidas = cbNaoConcluidas.checked;
   if (naoConcluidas) {
     const whereClause = JSON.stringify({ concluida: false });
     url = `${url}?where=${whereClause}`;
@@ -32,21 +34,17 @@ const getTarefas = async () => {
 };
 
 const listarTarefas = async () => {
-  const listaTarefas = await getTarefas();
+  const listaTarefas = await getTarefas(cbNaoConcluidas.checked);
   listaTarefas.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
   olTarefas.innerHTML = "";
   for (let i = 0; i < listaTarefas.length; ++i) {
     const tarefa = listaTarefas[i];
     const li = document.createElement("li");
-    const text = document.createTextNode(`${tarefa.descricao} - concluída: `);
+    const text = document.createTextNode(`${tarefa.descricao}`);
     const cb = document.createElement("input");
-    cb.name = tarefa.objectId;
-    cb.type = "checkbox";
-    cb.checked = tarefa.concluida;
-    cb.onchange = () => handleChangeCBTarefa(cb, tarefa);
+    configurarCB(cb, tarefa);
     const button = document.createElement("button");
-    button.innerHTML = "X";
-    button.onclick = () => handleClickBtRemover(button, tarefa);
+    configurarBtRemover(button, tarefa);
     li.appendChild(text);
     li.appendChild(cb);
     li.appendChild(button);
@@ -54,26 +52,34 @@ const listarTarefas = async () => {
   }
 };
 
-const handleChangeCBTarefa = async (cb, tarefa) => {
-  cb.disabled = true;
-  await fetch(`${tarefaURL}/${tarefa.objectId}`, {
-    method: "PUT",
-    headers: headersJson,
-    body: JSON.stringify({ concluida: !tarefa.concluida }),
-  });
-  cb.disabled = false;
-  listarTarefas();
+const configurarCB = (cb, tarefa) => {
+  cb.name = tarefa.objectId;
+  cb.type = "checkbox";
+  cb.checked = tarefa.concluida;
+  cb.onchange = async () => {
+    cb.disabled = true;
+    await fetch(`${tarefaURL}/${tarefa.objectId}`, {
+      method: "PUT",
+      headers: headersJson,
+      body: JSON.stringify({ concluida: !tarefa.concluida }),
+    });
+    listarTarefas();
+  };
 };
 
-const handleClickBtRemover = async (button, tarefa) => {
-  button.disabled = true;
-  await fetch(`${tarefaURL}/${tarefa.objectId}`, {
-    method: "DELETE",
-    headers: headers,
-  });
-  button.disabled = false;
-  listarTarefas();
-};
+// Exemplo de como utilizar function, ao invés de arrow function
+// No seu código, dê preferência em utilizar apenas uma das duas formas
+function configurarBtRemover(button, tarefa) {
+  button.innerHTML = "X";
+  button.onclick = async () => {
+    button.disabled = true;
+    await fetch(`${tarefaURL}/${tarefa.objectId}`, {
+      method: "DELETE",
+      headers: headers,
+    });
+    listarTarefas();
+  };
+}
 
 const adicionarTarefa = async () => {
   const descricao = inputTarefa.value;
@@ -92,6 +98,44 @@ const adicionarTarefa = async () => {
   inputTarefa.focus();
 };
 
+const desenharGraficoPizza = async () => {
+  const tarefas = await getTarefas(false);
+  console.log("tarefas", tarefas);
+  const tarefasData = tarefas.reduce(
+    (acc, tarefa) => {
+      if (tarefa.concluida) {
+        acc[0] += 1;
+      } else {
+        acc[1] += 1;
+      }
+      return acc;
+    },
+    [0, 0]
+  );
+  console.log("tarefasData", tarefasData);
+  const data = {
+    labels: ["concluída", "a fazer"],
+    datasets: [
+      {
+        label: "Acompanhamento Tarefas",
+        data: tarefasData,
+        backgroundColor: ["rgb(0, 128, 0)", "rgb(255, 87, 51)"],
+      },
+    ],
+    hoverOffset: 4,
+  };
+  console.log("data", data);
+  const config = {
+    type: "pie",
+    data: data,
+  };
+  new Chart(ctx, config);
+};
+
 btCarregar.onclick = listarTarefas;
 btAdicionar.onclick = adicionarTarefa;
 cbNaoConcluidas.onchange = listarTarefas;
+window.onload = () => {
+  listarTarefas();
+  desenharGraficoPizza();
+};
